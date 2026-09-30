@@ -1,0 +1,1958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<title>CaseinLab XR</title>
+
+<style>
+:root{
+  --p:rgba(255,255,255,.9);
+  --t:#12202f;
+  --m:#56677c;
+  --bg:#cfdbea;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px)
+}
+
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme=light]){
+    --p:rgba(18,26,38,.9);
+    --t:#e8f0fa;
+    --m:#9fb0c4;
+    --bg:#0c121b
+  }
+}
+
+:root[data-theme=dark]{
+  --p:rgba(18,26,38,.9);
+  --t:#e8f0fa;
+  --m:#9fb0c4;
+  --bg:#0c121b
+}
+
+html,body{
+  height:100%;
+  margin:0;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--t);
+  font:14px system-ui,sans-serif
+}
+
+canvas#c{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  touch-action:none
+}
+
+.b{
+  position:fixed;
+  left:8px;
+  right:8px;
+  background:var(--p);
+  backdrop-filter:blur(8px);
+  border-radius:14px;
+  padding:10px;
+  box-shadow:0 4px 20px #0003;
+  z-index:2
+}
+
+#hud{
+  top:8px;
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:center
+}
+
+#hud b{
+  font-size:16px
+}
+
+#hud small{
+  display:block;
+  color:var(--m)
+}
+
+#pn{
+  bottom:8px;
+  max-height:40vh;
+  overflow:auto
+}
+
+button{
+  background:#0a7cff;
+  color:#fff;
+  border:0;
+  border-radius:9px;
+  padding:9px 12px;
+  font:inherit;
+  margin:3px 3px 3px 0
+}
+
+button:disabled{
+  opacity:.4
+}
+
+input[type=range]{
+  width:100%
+}
+
+#tt{
+  position:fixed;
+  top:96px;
+  left:50%;
+  transform:translateX(-50%);
+  max-width:90%;
+  background:#000c;
+  color:#fff;
+  padding:8px 12px;
+  border-radius:10px;
+  z-index:3;
+  display:none;
+  text-align:center
+}
+
+#ov{
+  inset:8px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  z-index:5;
+  overflow:auto
+}
+
+td{
+  padding:3px 10px 3px 0
+}
+
+body[data-role=A] .tt,
+body[data-role=B] .hh{
+  display:none
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="b" id="hud">
+
+  <div>
+    <b id="hT">22°C</b>
+    <small>Temp</small>
+  </div>
+
+  <div>
+    <b id="hP">6.6</b>
+    <small>pH</small>
+  </div>
+
+  <div>
+    <b id="hA">0.0</b>
+    <small>Acid ml</small>
+  </div>
+
+  <div>
+    <b id="hR">0%</b>
+    <small>Precipitate</small>
+  </div>
+
+  <canvas id="cv" width="120" height="44"></canvas>
+
+  <div>
+    <b id="hS"></b>
+    <small>Stage</small>
+  </div>
+
+  <button id="vr" style="display:none">VR</button>
+
+</div>
+
+<div id="tt"></div>
+
+<div class="b" id="pn">
+
+  <div data-s="0">
+    <b>1 · Measure milk</b>
+    <span id="cl">20</span> ml
+
+    <input
+      type="range"
+      id="cyl"
+      min="0"
+      max="30"
+      step="0.5"
+      value="20"
+    >
+
+    <button id="xf">Pour into beaker</button>
+  </div>
+
+  <div data-s="12" class="hh">
+    <b>Hot plate</b>
+    <span id="bl">0</span>%
+
+    <input
+      type="range"
+      id="bn"
+      min="0"
+      max="100"
+      value="0"
+    >
+
+    <small>Hold 40 ± 2 °C</small>
+  </div>
+
+  <div data-s="2" class="tt">
+    <b>Titrate 10% acetic acid</b><br>
+
+    Drops/sec
+    <span id="fl">3</span>
+
+    <input
+      type="range"
+      id="flow"
+      min="0.5"
+      max="8"
+      step="0.5"
+      value="3"
+    >
+
+    Stirring
+
+    <input
+      type="range"
+      id="stir"
+      min="0"
+      max="100"
+      value="0"
+    >
+
+    <button id="dr">Hold: add drops</button>
+  </div>
+
+  <div data-s="3">
+    <b>Curds formed!</b>
+    <button id="fi">Filter through paper</button>
+  </div>
+
+  <div data-s="4">
+    <b>Wash residue</b>
+    <button id="ww">Wash: water</button>
+    <button id="we">Wash: ethanol</button>
+  </div>
+
+  <div data-s="5">
+    <b>Dry &amp; weigh</b>
+    <button id="wg">Place on balance</button>
+  </div>
+
+</div>
+
+<div class="b" id="ov">
+
+  <h2>CaseinLab XR</h2>
+
+  <p>
+    Isolate casein from 20 ml milk at its isoelectric point
+    (pH 4.6). Heat to 40 °C, add acid dropwise while stirring,
+    filter, wash, weigh. Drag to orbit, scroll to zoom.
+  </p>
+
+  <div>
+    <button data-r="solo">Solo</button>
+    <button data-r="A">Partner A: heat</button>
+    <button data-r="B">Partner B: acid + stir</button>
+  </div>
+
+  <small>
+    Lab Partner mode: open this page in two tabs of the same browser,
+    pick A in one and B in the other.
+  </small>
+
+</div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+
+const $=q=>document.querySelector(q),
+V=(x,y,z)=>new THREE.Vector3(x,y,z),
+cl=(x,a,b)=>Math.min(b,Math.max(a,x)),
+G=(x,m,s)=>Math.exp(-((x-m)**2)/(2*s*s)),
+ez=x=>x*x*(3-2*x),
+lp=(a,b,t)=>a+(b-a)*t;
+
+const S={
+  st:0,
+  vol:0,
+  cyl:20,
+  bn:0,
+  T:22,
+  acid:0,
+  pH:6.6,
+  stir:0,
+  flow:3,
+  drop:0,
+  pr:0,
+  pk:0,
+  un:0,
+  ts:0,
+  tn:0,
+  pur:0,
+  an:0,
+  fl:0,
+  ang:0,
+  hold:0,
+  acc:0,
+  wq:null,
+  wW:0,
+  wE:0,
+  warn:0,
+  wg:null,
+  done:0,
+  role:'solo'
+};
+
+const R=new THREE.WebGLRenderer({
+  canvas:$('#c'),
+  antialias:true,
+  alpha:true
+});
+
+R.shadowMap.enabled=true;
+R.xr.enabled=true;
+
+const sc=new THREE.Scene(),
+W=new THREE.Group(),
+cam=new THREE.PerspectiveCamera(45,1,.1,100);
+
+sc.add(W);
+
+sc.add(
+  new THREE.HemisphereLight(
+    0xffffff,
+    0x556677,
+    .9
+  )
+);
+
+const dl=new THREE.DirectionalLight(0xffffff,.9);
+
+dl.position.set(4,8,5);
+dl.castShadow=true;
+
+sc.add(dl);
+
+const hp=new THREE.PointLight(
+  0xff5522,
+  0,
+  6
+);
+
+hp.position.set(0,.6,0);
+W.add(hp);
+
+const M=(c,o)=>
+  new THREE.MeshStandardMaterial({
+    color:c,
+    roughness:.5,
+    ...o
+  });
+
+const GL=new THREE.MeshPhysicalMaterial({
+  color:0xffffff,
+  transparent:true,
+  opacity:.2,
+  roughness:0,
+  side:2,
+  depthWrite:false
+});
+
+const mk=(g,m,x,y,z,p=W)=>{
+  const o=new THREE.Mesh(g,m);
+  o.position.set(x,y,z);
+  o.castShadow=true;
+  o.receiveShadow=true;
+  p.add(o);
+  return o
+};
+
+const Cy=(a,b,h,s=32,o=false)=>
+  new THREE.CylinderGeometry(a,b,h,s,1,o);
+
+function lb(t,x,y,z){
+
+  const c=document.createElement('canvas');
+
+  c.width=256;
+  c.height=64;
+
+  const g=c.getContext('2d');
+
+  g.fillStyle='#000a';
+  g.fillRect(0,0,256,64);
+
+  g.fillStyle='#fff';
+  g.font='bold 24px sans-serif';
+  g.textAlign='center';
+
+  g.fillText(t,128,42);
+
+  const s=new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map:new THREE.CanvasTexture(c)
+    })
+  );
+
+  s.scale.set(1.6,.4,1);
+  s.position.set(x,y,z);
+
+  W.add(s);
+}
+
+mk(
+  new THREE.BoxGeometry(11,.3,5),
+  M(0x2b3a4d),
+  0,-.15,0
+);
+
+mk(
+  Cy(1,1.05,.25),
+  M(0x333b45),
+  0,.125,0
+);
+
+const coil=mk(
+  new THREE.TorusGeometry(.7,.06,8,32),
+  M(
+    0x330000,
+    {
+      emissive:0xff2200,
+      emissiveIntensity:0
+    }
+  ),
+  0,.27,0
+);
+
+coil.rotation.x=Math.PI/2;
+
+lb(
+  'Hot plate',
+  0,
+  -.2+.1,
+  1.3
+);
+
+const bk=new THREE.Group();
+
+bk.position.set(0,.25,0);
+W.add(bk);
+
+mk(
+  Cy(.56,.56,1.5,40,true),
+  GL,
+  0,.75,0,
+  bk
+);
+
+mk(
+  Cy(.56,.56,.04),
+  GL,
+  0,.02,0,
+  bk
+);
+
+const mm=new THREE.MeshStandardMaterial({
+  color:0xf6f3ea,
+  transparent:true,
+  opacity:.96,
+  roughness:.3
+});
+
+const liq=mk(
+  Cy(.53,.53,1,40),
+  mm,
+  0,0,0,
+  bk
+);
+
+const setLiq=h=>{
+  liq.scale.y=Math.max(h,.001);
+  liq.position.y=.04+h/2;
+  liq.visible=h>.01;
+};
+
+const cg=new THREE.Group();
+
+cg.position.set(-2.3,0,.3);
+W.add(cg);
+
+mk(
+  Cy(.24,.24,2.6,24,true),
+  GL,
+  0,1.3,0,
+  cg
+);
+
+const cy=mk(
+  Cy(.22,.22,1,24),
+  M(0xf6f3ea),
+  0,0,0,
+  cg
+);
+
+for(let i=1;i<=6;i++){
+
+  mk(
+    new THREE.BoxGeometry(.2,.015,.02),
+    M(0x222),
+    0,
+    .06+.4*i,
+    .24,
+    cg
+  );
+
+}
+
+lb(
+  'Graduated cylinder',
+  -2.3,
+  3,
+  .3
+);
+
+const th=new THREE.Group();
+
+th.position.set(.3,.3,.15);
+W.add(th);
+
+mk(
+  Cy(.05,.05,2,12),
+  GL,
+  0,1,0,
+  th
+);
+
+const red=mk(
+  Cy(.025,.025,1,8),
+  M(
+    0xff2222,
+    {
+      emissive:0x880000
+    }
+  ),
+  0,0,0,
+  th
+);
+
+const mr=mk(
+  new THREE.TorusGeometry(.06,.01,6,12),
+  M(0x00aa55),
+  0,
+  .2+.4*1.6,
+  0,
+  th
+);
+
+mr.rotation.x=Math.PI/2;
+
+const rg=new THREE.Group();
+
+rg.position.set(0,.3,0);
+W.add(rg);
+
+const rod=mk(
+  Cy(.03,.03,2.2,8),
+  M(
+    0xddddee,
+    {
+      metalness:.6
+    }
+  ),
+  .2,
+  1.1,
+  0,
+  rg
+);
+
+rod.rotation.z=-.1;
+
+const bu=new THREE.Group();
+
+W.add(bu);
+
+mk(
+  Cy(.1,.1,1.6,16,true),
+  GL,
+  0,3.1,0,
+  bu
+);
+
+const ac=mk(
+  Cy(.085,.085,1),
+  M(
+    0xffe8a0,
+    {
+      transparent:true,
+      opacity:.8
+    }
+  ),
+  0,
+  2.4,
+  0,
+  bu
+);
+
+mk(
+  Cy(.09,.02,.3),
+  GL,
+  0,
+  2.15,
+  0,
+  bu
+);
+
+mk(
+  Cy(.05,.05,3.6),
+  M(0x999999),
+  1.8,
+  1.8,
+  -.8,
+  bu
+);
+
+const arm=mk(
+  new THREE.BoxGeometry(2,.08,.08),
+  M(0x999999),
+  .9,
+  3.5,
+  -.4,
+  bu
+);
+
+arm.rotation.y=.4;
+
+lb(
+  '10% CH3COOH',
+  -1.1,
+  3.9,
+  0
+);
+
+const FX=2.9;
+
+mk(
+  Cy(.25,.8,1.3,24,true),
+  GL,
+  FX,.65,0
+);
+
+mk(
+  Cy(.25,.25,.5,16,true),
+  GL,
+  FX,1.55,0
+);
+
+mk(
+  Cy(.8,.12,.7,32,true),
+  GL,
+  FX,2.15,0
+);
+
+mk(
+  Cy(.7,.1,.55,32,true),
+  M(
+    0xffffff,
+    {
+      side:2,
+      transparent:true,
+      opacity:.8
+    }
+  ),
+  FX,
+  2.2,
+  0
+);
+
+const fl=mk(
+  Cy(.55,.6,1,24),
+  M(
+    0xe9e3a0,
+    {
+      transparent:true,
+      opacity:.6
+    }
+  ),
+  FX,
+  .1,
+  0
+);
+
+lb(
+  'Filtration (whey)',
+  FX,
+  3,
+  0
+);
+
+const SX=-2.5;
+
+mk(
+  new THREE.BoxGeometry(1.6,.2,1),
+  M(0x222831),
+  SX,
+  .1,
+  1.6
+);
+
+mk(
+  Cy(.4,.4,.03),
+  GL,
+  SX,
+  .25,
+  1.35
+);
+
+lb(
+  'Digital balance',
+  SX,
+  1.1,
+  1.6
+);
+
+const dc=document.createElement('canvas');
+
+dc.width=256;
+dc.height=96;
+
+const dx=dc.getContext('2d'),
+dt=new THREE.CanvasTexture(dc);
+
+const drawScale=t=>{
+
+  dx.fillStyle='#021';
+  dx.fillRect(0,0,256,96);
+
+  dx.fillStyle='#3f6';
+  dx.font='bold 54px monospace';
+
+  dx.fillText(t,14,66);
+
+  dt.needsUpdate=true;
+};
+
+drawScale('0.000 g');
+
+const dp=mk(
+  new THREE.PlaneGeometry(1.2,.45),
+  new THREE.MeshBasicMaterial({
+    map:dt
+  }),
+  SX,
+  .21,
+  1.9
+);
+
+dp.rotation.x=-Math.PI/2;
+
+const N=240;
+
+const cM=M(
+  0xd6cc95,
+  {
+    roughness:.8
+  }
+);
+
+const CM=new THREE.InstancedMesh(
+  new THREE.IcosahedronGeometry(.06,1),
+  cM,
+  N
+);
+
+const o3=new THREE.Object3D();
+
+W.add(CM);
+
+CM.frustumCulled=false;
+
+const hy=[],
+rr=[],
+a0=[];
+
+for(let i=0;i<N;i++){
+
+  hy.push(Math.random());
+  rr.push(Math.sqrt(Math.random()));
+  a0.push(Math.random()*6.28);
+
+}
+
+const dr=[],
+dg=new THREE.SphereGeometry(.05,8,8);
+
+function spawn(x,y,z,ye,c,t){
+
+  const m=new THREE.Mesh(
+    dg,
+    new THREE.MeshBasicMaterial({
+      color:c
+    })
+  );
+
+  m.position.set(x,y,z);
+
+  W.add(m);
+
+  dr.push({
+    m,
+    v:0,
+    ye,
+    t
+  });
+}
+
+const NM=[
+  'Measure',
+  'Heat',
+  'Titrate',
+  'Filter',
+  'Wash',
+  'Weigh',
+  'Done'
+];
+
+let tto;
+
+function toast(t){
+
+  const e=$('#tt');
+
+  e.textContent=t;
+  e.style.display='block';
+
+  clearTimeout(tto);
+
+  tto=setTimeout(
+    ()=>e.style.display='none',
+    4500
+  );
+}
+
+function ui(){
+
+  document
+    .querySelectorAll('[data-s]')
+    .forEach(
+      e=>e.hidden=!e.dataset.s.includes(S.st)
+    );
+
+  $('#hS').textContent=NM[S.st];
+
+  $('#ww').disabled=!!S.wW||!!S.wq;
+  $('#we').disabled=!!S.wE||!!S.wq;
+}
+
+let ch;
+
+try{
+  ch=new BroadcastChannel('caseinlab');
+}catch(e){}
+
+const send=o=>{
+  if(ch&&S.role!='solo')
+    ch.postMessage(o);
+};
+
+function act(n,rem){
+
+  const s=S;
+
+  if(n=='xf'&&s.st==0){
+
+    s.vol=s.cyl;
+    s.st=1;
+
+    toast(
+      Math.abs(s.vol-20)>.5
+      ?
+      'Measured '+s.vol+' ml (target 20). Yield accounts for it.'
+      :
+      '20 ml in beaker. Heat to 40 °C.'
+    );
+  }
+
+  else if(n=='fi'&&s.st==3&&!s.fl)
+    s.fl=1;
+
+  else if(
+    (n=='ww'||n=='we')&&
+    s.st==4&&
+    !s.wq&&
+    !(n=='ww'?s.wW:s.wE)
+  ){
+
+    s.wq={
+      t:n=='we'?1:0,
+      left:36,
+      c:0
+    };
+  }
+
+  else if(n=='wg'&&s.st==5&&!s.wg){
+
+    s.wg={
+      p:0,
+      r:calc()
+    };
+
+  }
+
+  if(!rem)
+    send({
+      k:'act',
+      n,
+      cyl:s.cyl
+    });
+
+  ui();
+}
+
+function calc(){
+
+  const s=S,
+  mw=s.vol*1.03,
+  th=mw*.026,
+  ts=s.tn?s.ts/s.tn:0,
+  Q=cl(
+    s.pk*(.6+.4*ts)*
+    (1-.6*s.un),
+    0,
+    1
+  ),
+  imp=(1-s.pur)*.03,
+  dry=th*(.5+.48*Q)+imp;
+
+  return{
+    mw,
+    th,
+    dry,
+    y:dry/mw*100,
+    rec:(dry-imp)/th*100,
+    ts,
+    Q,
+    va:1-Math.min(
+      1,
+      Math.abs(s.vol-20)/5
+    )
+  };
+}
+
+$('#cyl').oninput=e=>{
+
+  S.cyl=+e.target.value;
+  $('#cl').textContent=S.cyl;
+};
+
+$('#bn').oninput=e=>{
+
+  S.bn=+e.target.value;
+  $('#bl').textContent=S.bn;
+};
+
+$('#flow').oninput=e=>{
+
+  S.flow=+e.target.value;
+  $('#fl').textContent=S.flow;
+};
+
+$('#stir').oninput=e=>{
+  S.stir=e.target.value/100;
+};
+
+const dn=v=>()=>S.drop=v;
+
+$('#dr').onpointerdown=dn(1);
+
+addEventListener(
+  'pointerup',
+  dn(0)
+);
+
+addEventListener(
+  'keydown',
+  e=>{
+    if(e.code=='Space')
+      S.drop=1;
+  }
+);
+
+addEventListener(
+  'keyup',
+  e=>{
+    if(e.code=='Space')
+      S.drop=0;
+  }
+);
+
+['xf','fi','ww','we','wg'].forEach(
+  i=>{
+    $('#'+i).onclick=()=>act(i);
+  }
+);
+
+document
+  .querySelectorAll('[data-r]')
+  .forEach(
+    b=>b.onclick=()=>{
+
+      S.role=b.dataset.r;
+
+      document.body.dataset.role=S.role;
+
+      $('#ov').style.display='none';
+
+      ui();
+    }
+  );
+
+if(ch)
+
+  ch.onmessage=e=>{
+
+    const m=e.data;
+
+    if(m.k=='act'){
+
+      if(m.cyl!=null)
+        S.cyl=m.cyl;
+
+      act(m.n,1);
+
+    }
+
+    else if(m.k=='A'&&S.role=='B'){
+
+      S.bn=m.bn;
+      S.T=m.T;
+
+    }
+
+    else if(m.k=='B'&&S.role=='A'){
+
+      Object.assign(S,m.d);
+
+    }
+  };
+
+setInterval(
+  ()=>{
+    if(S.role=='A')
+      send({
+        k:'A',
+        bn:S.bn,
+        T:S.T
+      });
+
+    if(S.role=='B')
+      send({
+        k:'B',
+        d:{
+          acid:S.acid,
+          stir:S.stir,
+          flow:S.flow,
+          drop:S.drop,
+          pr:S.pr,
+          pk:S.pk,
+          un:S.un
+        }
+      });
+  },
+  150
+);
+
+function step(dt){
+
+  const s=S;
+
+  s.T+=(
+    (
+      s.st>=1&&s.st<=2
+      ?
+      s.bn/100*1.8
+      :
+      0
+    )
+    -
+    (s.T-22)*.02
+  )*dt;
+
+  s.pH=Math.max(
+    2.5,
+    6.6-.4*s.acid
+  );
+
+  s.ang+=s.stir*9*dt;
+
+  if(s.st==1){
+
+    if(Math.abs(s.T-40)<2){
+
+      s.hold+=dt;
+
+      if(s.hold>2){
+
+        s.st=2;
+
+        toast(
+          'Stable at 40 °C. Add acid dropwise and stir!'
+        );
+
+        ui();
+      }
+
+    }else{
+
+      s.hold=0;
+
+    }
+  }
+
+  if(s.st==2){
+
+    const tf=G(s.T,40,4),
+    tg=G(s.pH,4.6,.4)*tf,
+    r=.15+1.2*s.stir;
+
+    s.pr+=
+      tg>s.pr
+      ?
+      (tg-s.pr)*r*dt
+      :
+      -(s.pr-tg)*.02*dt;
+
+    s.pk=Math.max(
+      s.pk,
+      s.pr
+    );
+
+    s.ts+=tf*dt;
+    s.tn+=dt;
+
+    if(s.drop){
+
+      s.acc+=s.flow*dt;
+
+      while(s.acc>=1){
+
+        s.acc--;
+
+        spawn(
+          (Math.random()-.5)*.1,
+          2.1,
+          (Math.random()-.5)*.1,
+          .3+.035*s.vol,
+          0xffe8a0,
+          'a'
+        );
+      }
+
+      if(
+        s.flow>3&&
+        s.stir<.3
+      ){
+
+        s.un=Math.min(
+          1,
+          s.un+
+          (s.flow-3)*
+          (.3-s.stir)*
+          .06*dt
+        );
+
+        if(
+          s.un>.15&&
+          !s.warn
+        ){
+
+          s.warn=1;
+
+          toast(
+            '⚠ Acid too fast without stirring: uneven precipitate, impurities trapped!'
+          );
+        }
+      }
+    }
+
+    if(
+      s.pr>.8||
+      s.acid>=9
+    ){
+
+      s.st=3;
+
+      toast(
+        s.pr>.8
+        ?
+        'Curdling complete: curds + clear whey!'
+        :
+        'Over-acidified: poor yield. Filter anyway.'
+      );
+
+      ui();
+    }
+  }
+
+  if(s.fl){
+
+    s.an+=dt/4;
+
+    if(s.an>=1){
+
+      s.an=1;
+      s.fl=0;
+      s.st=4;
+
+      toast(
+        'Now wash with water, then ethanol.'
+      );
+
+      ui();
+    }
+  }
+
+  if(s.wq){
+
+    const q=s.wq;
+
+    q.c+=dt*20;
+
+    while(
+      q.left>0&&
+      q.c>=1
+    ){
+
+      q.c--;
+
+      q.left--;
+
+      spawn(
+        FX+(Math.random()-.5)*.4,
+        3.3,
+        (Math.random()-.5)*.4,
+        2.2,
+        q.t
+        ?
+        0xd9b3ff
+        :
+        0x66bbff,
+        'w'
+      );
+    }
+
+    if(
+      q.left<=0&&
+      !dr.length
+    ){
+
+      q.t?
+        s.wE=1:
+        s.wW=1;
+
+      s.pur=.5*s.wW+.5*s.wE;
+      s.wq=null;
+
+      if(
+        s.wW&&
+        s.wE
+      ){
+
+        s.st=5;
+
+        toast(
+          'Purified! Dry and weigh.'
+        );
+      }
+
+      ui();
+    }
+  }
+
+  for(
+    let i=dr.length-1;
+    i>=0;
+    i--
+  ){
+
+    const d=dr[i];
+
+    d.v-=14*dt;
+
+    d.m.position.y+=d.v*dt;
+
+    if(
+      d.m.position.y<=d.ye
+    ){
+
+      if(d.t=='a')
+        s.acid+=.1;
+
+      W.remove(d.m);
+
+      dr.splice(i,1);
+    }
+  }
+
+  if(s.wg){
+
+    s.wg.p+=dt/4;
+
+    const p=s.wg.p,
+    r=s.wg.r;
+
+    drawScale(
+      (
+        r.dry*
+        ez(
+          cl(
+            (p-.5)*2,
+            0,
+            1
+          )
+        )
+      ).toFixed(3)+' g'
+    );
+
+    if(
+      p>=1&&
+      !s.done
+    ){
+
+      s.done=1;
+      s.st=6;
+
+      ui();
+
+      report(r);
+    }
+  }
+}
+
+function report(r){
+
+  const s=S;
+
+  const sc_=Math.round(
+    100*(
+      .35*r.Q+
+      .2*r.ts+
+      .2*(1-s.un)+
+      .15*s.pur+
+      .1*r.va
+    )
+  );
+
+  const st=
+    sc_>=90
+    ?
+    3
+    :
+    sc_>=70
+    ?
+    2
+    :
+    1;
+
+  const f=(x,d=1)=>
+    x.toFixed(d);
+
+  const ov=$('#ov');
+
+  ov.style.display='flex';
+
+  ov.innerHTML=`
+
+    <h2>
+      Report: ${sc_}/100
+      ${'★'.repeat(st)}
+      ${'☆'.repeat(3-st)}
+    </h2>
+
+    <table>
+
+      <tr>
+        <td>Milk weight (V×1.03)</td>
+        <td>
+          <b>${f(r.mw,2)} g</b>
+        </td>
+      </tr>
+
+      <tr>
+        <td>Dry casein</td>
+        <td>
+          <b>${f(r.dry,3)} g</b>
+        </td>
+      </tr>
+
+      <tr>
+        <td>Yield = casein/milk × 100</td>
+        <td>
+          <b>${f(r.y,2)} %</b>
+        </td>
+      </tr>
+
+      <tr>
+        <td>Recovery vs theoretical (2.6%)</td>
+        <td>
+          ${f(r.rec)} %
+        </td>
+      </tr>
+
+      <tr>
+        <td>Temperature control</td>
+        <td>
+          ${f(r.ts*100,0)} %
+        </td>
+      </tr>
+
+      <tr>
+        <td>Mixing evenness</td>
+        <td>
+          ${f((1-s.un)*100,0)} %
+        </td>
+      </tr>
+
+      <tr>
+        <td>Purity (washes)</td>
+        <td>
+          ${f(s.pur*100,0)} %
+        </td>
+      </tr>
+
+      <tr>
+        <td>Peak precipitation</td>
+        <td>
+          ${f(s.pk*100,0)} %
+        </td>
+      </tr>
+
+    </table>
+
+    <p>
+      <small>
+        Casein is ~80% of milk
+        <i>protein</i>, and milk is ~3.3% protein,
+        so the expected yield is about 2.6 g per
+        100 g milk, not 80%.
+        Your ${f(r.y,2)}% is compared to that.
+      </small>
+    </p>
+
+    <button onclick="location.reload()">
+      Run again
+    </button>
+  `;
+}
+
+const cvx=$('#cv').getContext('2d'),
+C2=new THREE.Color(0xe9e3a8),
+WH=new THREE.Color(0xffffff),
+CI=new THREE.Color(0xd6cc95);
+
+function draw(t){
+
+  const s=S,
+  h0=.035*s.vol,
+  ea=ez(cl(s.an,0,1)),
+  h=h0*(1-ea);
+
+  setLiq(
+    s.st>=1
+    ?
+    h
+    :
+    0
+  );
+
+  const m=cl(
+    (s.pr-.15)/.7,
+    0,
+    1
+  );
+
+  mm.color
+    .set(0xf6f3ea)
+    .lerp(C2,m);
+
+  mm.opacity=.96-.42*m;
+
+  const cyl=s.st==0
+    ?
+    s.cyl
+    :
+    0;
+
+  cy.scale.y=
+    Math.max(
+      .08*cyl,
+      .001
+    );
+
+  cy.position.y=.06+.04*cyl;
+
+  coil.material.emissiveIntensity=
+    s.bn/100*2;
+
+  hp.intensity=
+    s.bn/100*1.5;
+
+  const rh=
+    .2+
+    cl(s.T,0,100)/100*1.6;
+
+  red.scale.y=rh;
+  red.position.y=rh/2;
+
+  rg.rotation.y=s.ang;
+
+  rg.visible=
+    th.visible=
+    bu.visible=
+    s.st<3;
+
+  const af=cl(
+    1-s.acid/12,
+    .03,
+    1
+  );
+
+  ac.scale.y=1.5*af;
+  ac.position.y=2.35+.75*af;
+
+  const e2=ez(
+    cl(
+      s.an*1.4,
+      0,
+      1
+    )
+  );
+
+  bk.position.set(
+    lp(0,FX+.95,e2),
+    lp(.25,3,e2),
+    0
+  );
+
+  bk.rotation.z=1.15*e2;
+
+  const fh=.85*ea;
+
+  fl.scale.y=
+    Math.max(fh,.001);
+
+  fl.position.y=.05+fh/2;
+
+  cM.color
+    .copy(CI)
+    .lerp(WH,s.pur);
+
+  const n=Math.floor(
+    s.pr*N
+  );
+
+  const sz=.8+s.un*1.5;
+
+  for(let i=0;i<N;i++){
+
+    if(
+      i>=n||
+      s.st<2
+    ){
+
+      o3.scale.setScalar(0);
+      o3.updateMatrix();
+
+      CM.setMatrixAt(
+        i,
+        o3.matrix
+      );
+
+      continue;
+    }
+
+    const a=
+      a0[i]+s.ang*.4;
+
+    const r=
+      rr[i]*.42;
+
+    const jt=
+      Math.sin(t*3+i)*
+      .02*
+      (.3+s.stir*3);
+
+    let x=
+      r*Math.cos(a),
+      y=
+      .35+
+      hy[i]*
+      Math.max(
+        h0-.1,
+        .05
+      )+
+      jt,
+      z=
+      r*Math.sin(a);
+
+    if(s.an>0){
+
+      const q=ez(
+        cl(
+          s.an*1.2-.2,
+          0,
+          1
+        )
+      );
+
+      x=lp(
+        x,
+        FX+
+        rr[i]*.2*
+        Math.cos(a),
+        q
+      );
+
+      y=lp(
+        y,
+        1.95+
+        hy[i]*.25,
+        q
+      );
+
+      z=lp(
+        z,
+        rr[i]*.2*
+        Math.sin(a),
+        q
+      );
+    }
+
+    if(s.wg){
+
+      const q=ez(
+        cl(
+          s.wg.p*2,
+          0,
+          1
+        )
+      );
+
+      x=lp(
+        FX+
+        rr[i]*.2*
+        Math.cos(a),
+        SX+
+        rr[i]*.15*
+        Math.cos(a),
+        q
+      );
+
+      y=lp(
+        1.95+
+        hy[i]*.25,
+        .32+
+        hy[i]*.06,
+        q
+      );
+
+      z=lp(
+        rr[i]*.2*
+        Math.sin(a),
+        1.35+
+        rr[i]*.15*
+        Math.sin(a),
+        q
+      );
+    }
+
+    o3.position.set(x,y,z);
+
+    o3.scale.setScalar(sz);
+
+    o3.updateMatrix();
+
+    CM.setMatrixAt(
+      i,
+      o3.matrix
+    );
+  }
+
+  CM.instanceMatrix.needsUpdate=true;
+
+  $('#hT').textContent=
+    s.T.toFixed(1)+'°C';
+
+  $('#hT').style.color=
+    Math.abs(s.T-40)<2
+    ?
+    '#12a150'
+    :
+    '';
+
+  $('#hP').textContent=
+    s.pH.toFixed(2);
+
+  $('#hA').textContent=
+    s.acid.toFixed(1);
+
+  $('#hR').textContent=
+    Math.round(s.pr*100)+'%';
+
+  cvx.clearRect(
+    0,
+    0,
+    120,
+    44
+  );
+
+  cvx.strokeStyle='#0a7cff';
+
+  cvx.beginPath();
+
+  for(
+    let x=0;
+    x<=120;
+    x++
+  ){
+
+    const y=
+      42-
+      38*
+      G(
+        3+x/30,
+        4.6,
+        .4
+      );
+
+    x
+      ?
+      cvx.lineTo(x,y)
+      :
+      cvx.moveTo(x,y);
+  }
+
+  cvx.stroke();
+
+  cvx.fillStyle='#e33';
+
+  cvx.beginPath();
+
+  cvx.arc(
+    cl(
+      (s.pH-3)*30,
+      0,
+      120
+    ),
+    42-
+    38*
+    G(
+      s.pH,
+      4.6,
+      .4
+    ),
+    4,
+    0,
+    7
+  );
+
+  cvx.fill();
+}
+
+let th_=.15,
+ph=1.15,
+rad=9,
+tg=V(0,1.4,0),
+tg2=V(0,1.4,0),
+last=0;
+
+const F=[
+  V(-1,1.2,0),
+  V(0,1.4,0),
+  V(0,1.6,0),
+  V(1.6,1.6,0),
+  V(2.2,1.6,0),
+  V(-1,.8,1)
+];
+
+function rs(){
+
+  R.setSize(
+    innerWidth,
+    innerHeight,
+    false
+  );
+
+  cam.aspect=
+    innerWidth/innerHeight;
+
+  cam.updateProjectionMatrix();
+
+  rad=
+    cam.aspect<1
+    ?
+    15
+    :
+    9;
+}
+
+addEventListener(
+  'resize',
+  rs
+);
+
+rs();
+
+$('#c').onpointermove=e=>{
+
+  if(e.buttons){
+
+    th_-=e.movementX*.006;
+
+    ph=cl(
+      ph-e.movementY*.006,
+      .3,
+      1.5
+    );
+  }
+};
+
+$('#c').onwheel=e=>{
+
+  rad=cl(
+    rad+e.deltaY*.01,
+    4,
+    20
+  );
+};
+
+R.xr.addEventListener(
+  'sessionstart',
+  ()=>{
+    W.scale.setScalar(.22);
+    W.position.set(0,.8,-1);
+  }
+);
+
+R.xr.addEventListener(
+  'sessionend',
+  ()=>{
+    W.scale.setScalar(1);
+    W.position.set(0,0,0);
+  }
+);
+
+if(navigator.xr)
+
+  navigator.xr
+    .isSessionSupported('immersive-vr')
+    .then(
+      ok=>{
+        if(ok){
+
+          $('#vr').style.display='';
+
+          $('#vr').onclick=
+            ()=>{
+              navigator.xr
+                .requestSession(
+                  'immersive-vr',
+                  {
+                    optionalFeatures:[
+                      'local-floor'
+                    ]
+                  }
+                )
+                .then(
+                  x=>R.xr.setSession(x)
+                );
+            };
+        }
+      }
+    )
+    .catch(
+      ()=>{}
+    );
+
+R.setAnimationLoop(
+  t=>{
+
+    const dt=Math.min(
+      (t-last)/1000,
+      .05
+    );
+
+    last=t;
+
+    step(dt);
+    draw(t/1000);
+
+    if(!R.xr.isPresenting){
+
+      tg2=
+        S.wg
+        ?
+        V(-2.5,.6,1.5)
+        :
+        F[
+          Math.min(
+            S.st,
+            5
+          )
+        ];
+
+      tg.lerp(
+        tg2,
+        .04
+      );
+
+      cam.position.set(
+        tg.x+
+        rad*
+        Math.sin(ph)*
+        Math.sin(th_),
+
+        tg.y+
+        rad*
+        Math.cos(ph),
+
+        tg.z+
+        rad*
+        Math.sin(ph)*
+        Math.cos(th_)
+      );
+
+      cam.lookAt(tg);
+    }
+
+    R.render(
+      sc,
+      cam
+    );
+  }
+);
+
+ui();
+
+</script>
+
+</body>
+</html>
